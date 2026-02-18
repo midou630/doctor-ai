@@ -12,7 +12,7 @@ if not HUGGINGFACE_API_KEY:
     raise ValueError("Please set your HUGGINGFACE_API_KEY in environment variables!")
 
 # استخدام Router API الجديد
-API_URL = "https://router.huggingface.co/api/models/mistralai/Mistral-7B-Instruct-v0.2"
+API_URL = "https://router.huggingface.co/api/models/mistralai/Mistral-7B-Instruct-v0.3"
 HEADERS = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
 
 # --------------------------
