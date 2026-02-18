@@ -1,17 +1,18 @@
 # main.py
 import os
+import requests
 from fastapi import FastAPI, Form
 from fastapi.responses import HTMLResponse
-from openai import OpenAI
 
 # --------------------------
-# إعداد API Key
+# إعداد HuggingFace API Key
 # --------------------------
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    raise ValueError("Please set your OPENAI_API_KEY in environment variables!")
+HUGGINGFACE_API_KEY = os.environ.get("HUGGINGFACE_API_KEY")
+if not HUGGINGFACE_API_KEY:
+    raise ValueError("Please set your HUGGINGFACE_API_KEY in environment variables!")
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2"
+HEADERS = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
 
 # --------------------------
 # إنشاء تطبيق FastAPI
@@ -36,23 +37,30 @@ Veuillez fournir :
 Cas clinique :
 {case_text}
 """
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "system",
-                "content": "Assistant médical expérimental. Ne remplace pas un avis médical professionnel."
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
-    )
-    return response.choices[0].message.content
+
+    payload = {
+        "inputs": prompt,
+        "parameters": {
+            "max_new_tokens": 600,
+            "temperature": 0.7,
+            "return_full_text": False
+        }
+    }
+
+    response = requests.post(API_URL, headers=HEADERS, json=payload)
+
+    if response.status_code != 200:
+        return f"Erreur API HuggingFace: {response.text}"
+
+    result = response.json()
+
+    if isinstance(result, list) and "generated_text" in result[0]:
+        return result[0]["generated_text"]
+
+    return str(result)
 
 # --------------------------
-# الصفحة الرئيسية (تصميم خيالي عصري)
+# الصفحة الرئيسية
 # --------------------------
 @app.get("/", response_class=HTMLResponse)
 async def home():
@@ -82,18 +90,9 @@ async def home():
             width: 90%;
             max-width: 850px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-            animation: fadeUp 1s ease;
         }
-        h1 {
-            text-align: center;
-            font-size: 2.8em;
-            margin-bottom: 10px;
-        }
-        p {
-            text-align: center;
-            opacity: 0.9;
-            margin-bottom: 30px;
-        }
+        h1 { text-align: center; }
+        p { text-align: center; opacity: 0.9; margin-bottom: 30px; }
         textarea {
             width: 100%;
             height: 180px;
@@ -114,34 +113,17 @@ async def home():
             border-radius: 18px;
             background: linear-gradient(90deg, #ffcc33, #ff9900);
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-        }
-        button:hover {
-            transform: scale(1.03);
-            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
         }
         .loading {
             display: none;
             text-align: center;
             margin-top: 20px;
-            font-size: 1.2em;
-            animation: pulse 1.2s infinite;
         }
         footer {
             margin-top: 30px;
             text-align: center;
             font-size: 0.9em;
             opacity: 0.8;
-        }
-        @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes pulse {
-            0% { opacity: 0.4; }
-            50% { opacity: 1; }
-            100% { opacity: 0.4; }
         }
     </style>
 </head>
@@ -151,12 +133,12 @@ async def home():
         <p>Analyse intelligente des cas cliniques – aide à la décision médicale</p>
 
         <form action="/analyze/" method="post" onsubmit="showLoading()">
-            <textarea name="case_text" placeholder="Ex : Patient de 52 ans avec ictère, douleurs hépatiques..." required></textarea>
+            <textarea name="case_text" placeholder="Ex : Patient de 52 ans avec ictère..." required></textarea>
             <button type="submit">Analyser 🤖🩺</button>
         </form>
 
         <div class="loading" id="loading">
-            ⏳ قيد المعالجة... <br> 🤖🩺
+            ⏳ قيد المعالجة...
         </div>
 
         <footer>
@@ -189,7 +171,6 @@ async def analyze(case_text: str = Form(...)):
 <head>
     <meta charset="UTF-8">
     <title>Résultat 🧠🩺</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body {{
             margin: 0;
